@@ -1,4 +1,4 @@
-# CampusCart
+# CampusCart POS System
 
 > **A simple terminal tool for campus sellers to track stock, calculate totals, and print receipts.**
 
