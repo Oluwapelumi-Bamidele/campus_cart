@@ -1,4 +1,4 @@
-# CampusCart POS pro edition
+# CampusCart POS pro  business App
 
 > **A simple terminal tool for campus sellers to track stock, calculate totals, and print receipts.**
 
