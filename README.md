@@ -26,9 +26,10 @@ Many student business owners and campus vendors do not have expensive store syst
 
 | Person | Role | Main Goal | Problem Solved |
 | :--- | :--- | :--- | :--- |
-| **Joshua (Vendor)** | Store Owner | Fast item lookup and quick order totals | Stops slow manual entry during busy rushes[cite: 1]. |
-| **Elizabeth (Buyer)** | Customer | Clear prices and a quick checkout | Prevents long lines and price confusion[cite: 1]. |
-| **Toba (Admin)** | Manager | Update product prices and check total sales | Eliminates stock counting errors[cite: 1]. |
+| **Joshua (Vendor)** | Store Owner | Fast item lookup and quick order totals | Stops slow manual entry during busy rushes |
+| **Elizabeth (Buyer)** | Customer | Clear prices and a quick checkout | Prevents long lines and price confusion |
+| **Toba (Admin)** | Manager | Update product prices and check total sales | Eliminates stock counting errors |
+| **User_1 (QA)** | QA | Test for Quality assurance |tested and trusted|
 
 ---
 
