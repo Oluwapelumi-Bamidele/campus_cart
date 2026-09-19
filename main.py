@@ -34,5 +34,33 @@ print("\n--- Goods ready ---")
 print(f"Catalogue loaded with {len(inventory)} products.")
 print(f"initial cart state: {cart}")
 
+#main execution loop and menu branching
+while True:
+    print("\n" + "=" * 35)
+    print("        CAMPUS CART MAIN MENU        ")
+    print("=" * 35)
+    print("1. view Catalog")
+    print("2. Add Item to Cart")
+    print("3. View Cart")
+    print("4. Checkout & Exit")
+    print("=" * 35)
 
-
+    choice = input("\nselect an option (1-4): ").strip()
+    
+    if choice == "1":
+        #catalog view
+        print("\nDisplaying product catalog...")
+    elif choice == "2":
+        # cart seletion
+        print("\nAdding an item to cart...")
+    elif choice == "3":
+        #current cart display
+        print("\nDisplaying current cart items...")
+    elif choice == "4":
+        #checkout and exit route
+        print("\nChecking out... Thank you for your shopping!")
+        break
+    else:
+        #user error handling
+        print("\nInvalid selection! Please enter a number between 1 and 4.")
+        
