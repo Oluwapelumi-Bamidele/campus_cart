@@ -74,19 +74,12 @@ Below is how the program will look and work in the terminal[cite: 1]:
 =====================================================
 
 Select an option (1-4): _
+```
+
+<img src="Assets/Add%20to%20Cart.png" alt="Add to Cart" width="600">
+<img src="Assets/Checkout%20and%20Receipt.png" alt="Checkout and Receipt" width="600">
+<img src="Assets/Main%20Dashboard.png" alt="Main Dashboard" width="600">
+<img src="Assets/Shooping%20Cart.png" alt="Shopping Cart" width="600">
+<img src="Assets/View%20Catalog.png" alt="View Catalog" width="600">
 
 
-# Add to Cart
-<img src="c:\Users\oluwa\Desktop\Data Epic\campus_cart\Assets\Add to Cart.png" alt='Add to Cart' width="600">
-
-# Checkout and Receipt
-<img src="c:\Users\oluwa\Desktop\Data Epic\campus_cart\Assets\Checkout and Receipt.png" alt='Checkout and Receipt' width="600">
-
-# Main Dashboard
-<img src="c:\Users\oluwa\Desktop\Data Epic\campus_cart\Assets\Main Dashboard.png" alt='Main Dashboard' width="600">
-
-# Shooping Cart
-<img src="c:\Users\oluwa\Desktop\Data Epic\campus_cart\Assets\Shooping Cart.png" alt='Shopping Cart.png' width="600">
-
-# View Catalog
-<img src="c:\Users\oluwa\Desktop\Data Epic\campus_cart\Assets\View Catalog.png" alt='View Catalog' width="600">
