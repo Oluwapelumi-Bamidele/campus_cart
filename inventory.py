@@ -187,3 +187,51 @@ def display_sorted_catalog(inventory, ascending=True):
     for item_id, data in sorted_items.items():
         print(f"{item_id:<6} | {data['name']:<25} | ${data['price']:<9.2f} | {data['stock']:<8}")
     print("-" * 55)
+
+if __name__ == "__main__":
+    print("--- Running Inventory Engine Tests ---")
+
+    # Sample inventory setup for testing functionality
+    test_inventory = {
+        "101": {"name": "Notebook", "price": 2.50, "stock": 15},
+        "102": {"name": "Campus Hoodie", "price": 25.00, "stock": 3},
+        "103": {"name": "Sticky Notes", "price": 1.99, "stock": 50},
+    }
+
+    # 1. Test check_stock
+    print(f"\nChecking stock for Item '101': {check_stock(test_inventory, '101')} units")
+
+    # 2. Test update_stock
+    print("\nDeducting 5 units from Item '101':")
+    success, result = update_stock(test_inventory, "101", -5)
+    print(f"  Result: Success={success}, New Stock={result}")
+
+    # 3. Test verify_and_add_stock
+    print("\nRestocking 10 units to Item '102':")
+    success, msg = verify_and_add_stock(test_inventory, "102", 10)
+    print(f"  Result: {msg}")
+
+    # 4. Test add_new_item
+    print("\nAdding new item 'Desk Lamp' (ID: 104):")
+    success, msg = add_new_item(test_inventory, "104", "Desk Lamp", 19.95, 8)
+    print(f"  Result: {msg}")
+
+    # 5. Test calc_price
+    price_under_20 = calc_price(15.00, order_total=15.00)
+    price_over_20 = calc_price(25.00, order_total=25.00)
+    print(f"\nPrice calculation test:")
+    print(f"  $15.00 Order (No Discount + 7.5% Tax): ${price_under_20}")
+    print(f"  $25.00 Order (10% Discount + 7.5% Tax): ${price_over_20}")
+
+    # 6. Test low stock report
+    print("\nTesting Low Stock Report (Threshold: 11):")
+    display_low_stock_report(test_inventory, limit=11)
+
+    # 7. Test display sorted catalog
+    print("\nTesting Sorted Catalog (Low-to-High Price):")
+    display_sorted_catalog(test_inventory, ascending=True)
+
+    # 8. Test delete_item
+    print("\nDeleting Item '103':")
+    success, msg = delete_item(test_inventory, "103")
+    print(f"  Result: {msg}")
