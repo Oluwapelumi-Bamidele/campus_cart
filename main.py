@@ -7,7 +7,7 @@ Description: A CLI tool for CampusCart using conditional, loops, dictionaries an
 """
 
 import os
-import getpass
+
 
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
 
