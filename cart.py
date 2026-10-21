@@ -51,3 +51,13 @@ def calculate_subtotal(cart):
     """Calculates subtotal"""
     # Multiply price by quantity for every item and sum them up
     return sum(item["price"] * item["quantity"] for item in cart)
+
+
+def stream_receipt_lines(cart):
+    """Steams receipt"""
+    # Yield formatted line items one by one
+    for item in cart:
+        total_price = item["price"] * item["quantity"]
+        yield f"{item['name']} (x{item['quantity']}) - ${total_price:.2f}"
+    # Yield the final subtotal line
+    yield f"Subtotal: ${calculate_subtotal(cart):.2f}"
