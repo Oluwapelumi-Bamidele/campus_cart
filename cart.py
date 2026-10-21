@@ -61,3 +61,44 @@ def stream_receipt_lines(cart):
         yield f"{item['name']} (x{item['quantity']}) - ${total_price:.2f}"
     # Yield the final subtotal line
     yield f"Subtotal: ${calculate_subtotal(cart):.2f}"
+
+
+
+# Run test code only when this file is executed directly
+if __name__ == "__main__":
+    print("--- Running Cart Engine Tests ---")
+
+    # Initialize empty cart
+    test_cart = []
+
+    # 1. Test adding items
+    add_item(test_cart, name="Notebook", price=2.50, quantity=2, item_id="101")
+    add_item(test_cart, name="Campus Hoodie", price=25.00, quantity=1, item_id="102")
+    # Adding more of an existing item
+    add_item(test_cart, name="Notebook", price=2.50, quantity=1, item_id="101")
+
+    print("\nCart items after additions:")
+    for item in test_cart:
+        print(f"  - {item['name']}: Qty {item['quantity']} @ ${item['price']} each")
+
+    # 2. Test subtotal calculation
+    subtotal = calculate_subtotal(test_cart)
+    print(f"\nCalculated Subtotal: ${subtotal:.2f}")
+
+    # 3. Test streaming receipt lines
+    print("\nReceipt Lines Preview:")
+    for line in stream_receipt_lines(test_cart):
+        print(f"  > {line}")
+
+    # 4. Test partial item removal
+    print("\nRemoving 1 Notebook:")
+    success, message, removed_qty = remove_item(test_cart, item_id="101", quantity_to_remove=1)
+    print(f"  Result: {message}")
+
+    # 5. Test removing full item quantity
+    print("\nRemoving Campus Hoodie entirely:")
+    success, message, removed_qty = remove_item(test_cart, item_id="102", quantity_to_remove=1)
+    print(f"  Result: {message}")
+
+    print("\nFinal Cart State:")
+    print(test_cart)
