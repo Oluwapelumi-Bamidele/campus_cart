@@ -58,3 +58,42 @@ def verify_and_add_stock(inventory, item_id, add_qty):
     # Increase stock count by the added quantity
     inventory[item_id]["stock"] += add_qty
     return True, f"Successfully added {add_qty} units! New stock: {inventory[item_id]['stock']}"
+
+def add_new_item(inventory, item_id, name, price, stock):
+    """Register a new product entry into the inventory catalog.
+    
+    Args:
+        inventory (dict): The main inventory data structure.
+        item_id (str): A unique product identifier.
+        name (str): Product name.
+        price (float): Unit price.
+        stock (int): Initial stock quantity.
+        
+    Returns:
+        tuple: (bool, str) Success status and descriptive message.
+    """
+    if item_id in inventory:
+        return False, "Error: An item with this ID already exists."
+    
+    # Add new product entry to inventory dictionary
+    inventory[item_id] = {
+        "name": name,
+        "price": price,
+        "stock": stock,
+    }
+    return True, f"Successfully added '{name}' (ID: {item_id}) to inventory!"
+
+def delete_item(inventory, item_id):
+    """Remove an item from the inventory catalog entirely.
+    
+    Args:
+        inventory (dict): The main inventory data structure.
+        item_id (str): The unique identifier of the product to remove.
+        
+    Returns:
+        tuple: (bool, str) Success status and removal confirmation message.
+    """
+    if item_id in inventory:
+        removed_item = inventory.pop(item_id)
+        return True, f"Successfully removed '{removed_item['name']}' from inventory."
+    return False, "Error: Item ID not found."
