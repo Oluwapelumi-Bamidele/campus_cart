@@ -97,3 +97,22 @@ def delete_item(inventory, item_id):
         removed_item = inventory.pop(item_id)
         return True, f"Successfully removed '{removed_item['name']}' from inventory."
     return False, "Error: Item ID not found."
+
+def calc_price(base_price, tax_rate=0.075, order_total=0.0):
+    """Calculate the final price of an item including conditional discounts and taxes.
+    
+    Args:
+        base_price (float): Original unit price.
+        tax_rate (float): Applicable tax rate (default is 7.5%).
+        order_total (float): Total order amount used for discount eligibility.
+        
+    Returns:
+        float: Final calculated price rounded to two decimal places.
+    """
+    # Apply 10% discount if order total exceeds $20
+    discount = 0.10 if order_total > 20 else 0.0
+    discounted_price = base_price * (1 - discount)
+    
+    # Calculate tax and round to two decimal places
+    final_price = discounted_price * (1 + tax_rate)
+    return round(final_price, 2)
