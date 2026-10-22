@@ -116,3 +116,74 @@ def calc_price(base_price, tax_rate=0.075, order_total=0.0):
     # Calculate tax and round to two decimal places
     final_price = discounted_price * (1 + tax_rate)
     return round(final_price, 2)
+
+def filter_low_stock(inventory, limit):
+    """Filter inventory items falling below a specified threshold limit.
+    
+    Args:
+        inventory (dict): The main inventory data structure.
+        limit (int): Stock threshold limit.
+        
+    Returns:
+        dict: Filtered dictionary of low-stock items.
+    """
+    is_low_stock = lambda data: data["stock"] < limit
+    return {item_id: data for item_id, data in inventory.items() if is_low_stock(data)}
+
+def display_low_stock_report(inventory, limit):
+    """Print a formatted report of items that have fallen below the stock threshold.
+    
+    Args:
+        inventory (dict): The main inventory data structure.
+        limit (int): Stock threshold limit.
+    """
+    low_stock_items = filter_low_stock(inventory, limit)
+    
+    if not low_stock_items:
+        print("\n--- Low Stock Alert Report ---")
+        print("Status: All items are currently well-stocked!")
+        return
+
+    # Print formatted table header
+    print("\n--- Low Stock Alert Report ---\n")
+    print(f"{'Item ID':<8} | {'Item Name':<25} | {'Price':<10} | {'Stock Remaining':<15}")
+    print("-" * 68)
+    
+    # Print formatted rows for low stock items
+    for item_id, data in low_stock_items.items():
+        name = data["name"]
+        price = f"${data['price']:.2f}"
+        stock = data["stock"]
+        print(f"{item_id:<8} | {name:<25} | {price:<10} | {stock:<15}")
+    print("-" * 68)
+
+def sort_catalog_by_price(inventory, ascending=True):
+    """Sort the inventory catalog items by price.
+    
+    Args:
+        inventory (dict): The main inventory data structure.
+        ascending (bool): Sort low-to-high if True, high-to-low if False.
+        
+    Returns:
+        dict: Dictionary of sorted inventory items.
+    """
+    sorted_items = sorted(inventory.items(), key=lambda item: item[1]["price"], reverse=not ascending)
+    return dict(sorted_items)
+
+def display_sorted_catalog(inventory, ascending=True):
+    """Print a formatted product catalog sorted by price.
+    
+    Args:
+        inventory (dict): The main inventory data structure.
+        ascending (bool): Sort direction flag.
+    """
+    sorted_items = sort_catalog_by_price(inventory, ascending=ascending)
+    direction = "Ascending (Low to High)" if ascending else "Descending (High to Low)"
+    
+    # Display formatted table header and items
+    print(f"\n--- Product Catalog ({direction}) ---\n")
+    print(f"{'ID':<6} | {'Item Name':<25} | {'Price':<10} | {'Stock':<8}")
+    print("-" * 55)
+    for item_id, data in sorted_items.items():
+        print(f"{item_id:<6} | {data['name']:<25} | ${data['price']:<9.2f} | {data['stock']:<8}")
+    print("-" * 55)
