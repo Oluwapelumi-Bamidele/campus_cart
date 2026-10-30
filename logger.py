@@ -78,3 +78,27 @@ def log_transaction(func):
         return final_total
         
     return wrapper
+
+def search_transaction_by_id(transaction_id):
+    """
+    Searches 'transaction_log.txt' for a specific transaction ID 
+    and returns the complete transaction record if found.
+    """
+    if not os.path.exists("transaction_log.txt"):
+        return False, "Error: No transaction log file found yet. No transactions have been recorded."
+        
+    with open("transaction_log.txt", "r", encoding="utf-8") as file:
+        content = file.read()
+        
+    # Split records by the header delimiter
+    records = content.split("--- TRANSACTION RECORD ---")
+    
+    target_id = transaction_id.strip().upper()
+    for record in records:
+        if not record.strip():
+            continue
+        if target_id in record.upper():
+            full_record = "--- TRANSACTION RECORD ---" + record
+            return True, full_record.strip()
+            
+    return False, f"Error: Transaction ID '{target_id}' was not found in the log."
