@@ -192,3 +192,98 @@ def user_menu(inventory, cart, client_name):
         elif choice == "8":
             print("\nReturning to Role Selection...")
             break
+
+# ADMIN MENU WORKFLOW
+
+def admin_menu(inventory):
+    while True:
+        print("\n==========================================")
+        print("          ADMINISTRATOR PANEL             ")
+        print("==========================================")
+        print("1. View Full Catalog (Includes Stock & Unit Codes)")
+        print("2. Check Stock Below Threshold Limit")
+        print("3. Restock Item")
+        print("4. Directly Modify Item Stock (Add/Remove)")
+        print("5. Add Brand New Product to Catalog")
+        print("6. Delete Item from Catalog")
+        print("7. Search Transaction Record by ID")
+        print("8. Return to Role Selection / Main Interface")
+        print("9. Exit Application Entirely")
+
+        choice = input("\nEnter choice (1-9): ").strip()
+
+        if choice == "1":
+            display_sorted_catalog(inventory, ascending=True)
+        elif choice == "2":
+            try:
+                limit = int(input("Enter stock threshold limit: "))
+                display_low_stock_report(inventory, limit)
+            except ValueError:
+                print("\n[Error] Invalid threshold input.")
+        elif choice == "3":
+            display_sorted_catalog(inventory, ascending=True)
+            item_id = input("\nEnter Item ID to restock: ").strip()
+            try:
+                add_qty = int(input("Enter quantity to add to stock: "))
+                if add_qty > 0:
+                    success, msg = verify_and_add_stock(inventory, item_id, add_qty)
+                    print(f"\n[{'Success' if success else 'Error'}] {msg}")
+                else:
+                    print("\n[Error] Quantity must be greater than 0.")
+            except ValueError:
+                print("\n[Error] Invalid quantity input.")
+        elif choice == "4":
+            display_sorted_catalog(inventory, ascending=True)
+            item_id = input("\nEnter Item ID to modify: ").strip()
+            if item_id in inventory:
+                item = inventory[item_id]
+                print(f"Selected: {item['name']} | Current Stock: {item['stock']}")
+                try:
+                    change = int(input("Enter quantity change (Positive to add, Negative to remove e.g., +5 or -3): "))
+                    success, result = update_stock(inventory, item_id, change)
+                    if success:
+                        print(f"\n[Success] Updated stock for '{item['name']}'. New Stock: {result}")
+                    else:
+                        print(f"\n[{result}]")
+                except ValueError:
+                    print("\n[Error] Invalid number input.")
+            else:
+                print("\n[Error] Item ID not found.")
+        elif choice == "5":
+            item_id = input("Enter new Item ID: ").strip()
+            name = input("Enter Item Name: ").strip()
+            try:
+                price = float(input("Enter Price ($): "))
+                stock = int(input("Enter Initial Stock Quantity: "))
+                success, msg = add_new_item(inventory, item_id, name, price, stock)
+                print(f"\n[{'Success' if success else 'Error'}] {msg}")
+            except ValueError:
+                print("\n[Error] Invalid numerical inputs for price or stock.")
+        elif choice == "6":
+            display_sorted_catalog(inventory, ascending=True)
+            item_id = input("\nEnter Item ID to delete from stock: ").strip()
+            confirm = input(f"Are you sure you want to permanently delete Item {item_id}? (y/n): ").strip().lower()
+            if confirm == "y":
+                success, msg = delete_item(inventory, item_id)
+                print(f"\n[{'Success' if success else 'Error'}] {msg}")
+        elif choice == "7":
+            print("\n==========================================")
+            print("       SEARCH TRANSACTION RECORD          ")
+            print("==========================================")
+            tx_id = input("Enter Transaction ID (e.g., A9F321BC): ").strip()
+            success, result_msg = search_transaction_by_id(tx_id)
+            if success:
+                print("\n[Found Transaction Record]")
+                print("-" * 40)
+                print(result_msg)
+                print("-" * 40)
+            else:
+                print(f"\n[{result_msg}]")
+        elif choice == "8":
+            print("\nReturning to Role Selection Interface...")
+            break
+        elif choice == "9":
+            print("\nExiting Campus Cart System. Goodbye!")
+            exit()
+        else:
+            print("\n[Error] Invalid selection. Choose between 1 and 9.")
