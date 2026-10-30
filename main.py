@@ -287,3 +287,36 @@ def admin_menu(inventory):
             exit()
         else:
             print("\n[Error] Invalid selection. Choose between 1 and 9.")
+
+# MAIN INTERFACE ENTRY POINT
+
+def main():
+    inventory = initialize_inventory()
+    cart = []
+
+    while True:
+        print("\n==================================================")
+        print("    WELCOME TO CAMPUS CART STUDENT STORE SYSTEM   ")
+        print("==================================================")
+        print("Please select your role interface:")
+        print("1. User / Student Interface")
+        print("2. Administrator Interface")
+        print("3. Exit System")
+
+        role_choice = input("\nSelect Option (1-3): ").strip()
+
+        if role_choice == "1":
+            client_name = input("\nEnter your Name (Student/Client): ").strip()
+            if not client_name:
+                client_name = "Guest Student"
+            user_menu(inventory, cart, client_name)
+        elif role_choice == "2":
+            admin_menu(inventory)
+        elif role_choice == "3":
+            print("\nThank you for using Campus Cart! System shut down.")
+            break
+        else:
+            print("\n[Error] Invalid selection. Choose 1, 2, or 3.")
+
+if __name__ == "__main__":
+    main()
