@@ -102,3 +102,56 @@ def search_transaction_by_id(transaction_id):
             return True, full_record.strip()
             
     return False, f"Error: Transaction ID '{target_id}' was not found in the log."
+
+# Run test code only when this file is executed directly
+if __name__ == "__main__":
+    print("========================================")
+    print("        RUNNING LOGGER MODULE TESTS       ")
+    print("========================================")
+
+    # 1. Define a sample checkout function and wrap it with @log_transaction
+    @log_transaction
+    def sample_checkout(client_name, cart):
+        # Calculate mock subtotal and final total (with 7.5% tax)
+        subtotal = sum(item['price'] * item['quantity'] for item in cart)
+        final_total = round(subtotal * 1.075, 2)
+        purchased_goods = [f"{item['name']} (x{item['quantity']})" for item in cart]
+        return subtotal, final_total, purchased_goods
+
+    # 2. Prepare sample mock carts for testing
+    cart_one = [
+        {"name": "Notebook", "price": 2.50, "quantity": 2},
+        {"name": "Campus Hoodie", "price": 25.00, "quantity": 1}
+    ]
+    
+    cart_two = [
+        {"name": "Sticky Notes", "price": 1.99, "quantity": 3}
+    ]
+
+    # 3. Test Test Checkout 1
+    print("\n--- Test 1: Processing First Checkout ---")
+    sample_checkout("Alice Smith", cart_one)
+
+    # 4. Test Test Checkout 2 (Verifies incrementing total transaction count)
+    print("\n--- Test 2: Processing Second Checkout ---")
+    sample_checkout("Bob Johnson", cart_two)
+
+    # 5. Test Transaction Search Functionality
+    print("\n========================================")
+    print("        TESTING TRANSACTION SEARCH        ")
+    print("========================================")
+    print("Open your 'transaction_log.txt' file, copy one of the Transaction IDs, and paste it below.")
+    
+    test_id = input("\nEnter Transaction ID to search (or press Enter to skip): ").strip()
+    
+    if test_id:
+        found, result_message = search_transaction_by_id(test_id)
+        if found:
+            print("\n[Success] Transaction Found:")
+            print("-" * 40)
+            print(result_message)
+            print("-" * 40)
+        else:
+            print(f"\n[{result_message}]")
+    else:
+        print("Skipped search test.")
