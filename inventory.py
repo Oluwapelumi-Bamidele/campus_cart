@@ -1,8 +1,9 @@
 """
 Inventory Engine Module
-Provides tools for managing product inventory levels, calculating pricing,
-filtering stock levels, displaying reports, and administrative management.
+Manages a catalog of Item objects, prices, filters, and reports.
 """
+
+from models.item import Item
 
 def check_stock(inventory, item_id):
     """Check and return the current stock count for a specific item.
@@ -15,7 +16,7 @@ def check_stock(inventory, item_id):
         int: The stock count if found, otherwise 0.
     """
     if item_id in inventory:
-        return inventory[item_id]["stock"]
+        return inventory[item_id].stock 
     return 0
 
 def update_stock(inventory, item_id, qty_change):
@@ -30,14 +31,12 @@ def update_stock(inventory, item_id, qty_change):
         tuple: (bool, int or str) Success status and remaining stock or error message.
     """
     if item_id in inventory:
-        current_stock = inventory[item_id]["stock"]
-        new_stock = current_stock + qty_change
-        
-        # Ensure stock does not drop below zero
-        if new_stock >= 0:
-            inventory[item_id]["stock"] = new_stock
-            return True, inventory[item_id]["stock"]
-        return False, "Error: Requested quantity exceeds available stock."
+        item = inventory[item_id]
+        try:
+            item.stock += qty_change
+            return True, item.stock
+        except ValueError:
+            return False, "Error: Requested quantity exceeds available stock."
     return False, "Error: Item ID not found."
 
 def verify_and_add_stock(inventory, item_id, add_qty):
@@ -55,8 +54,8 @@ def verify_and_add_stock(inventory, item_id, add_qty):
         return False, "Error: Item ID not found in inventory."
     
     # Increase stock count by the added quantity
-    inventory[item_id]["stock"] += add_qty
-    return True, f"Successfully added {add_qty} units! New stock: {inventory[item_id]['stock']}"
+    inventory[item_id].stock += add_qty
+    return True, f"Successfully added {add_qty} units! New stock: {inventory[item_id].stock}"
 
 def add_new_item(inventory, item_id, name, price, stock):
     """Register a new product entry into the inventory catalog.
@@ -75,11 +74,7 @@ def add_new_item(inventory, item_id, name, price, stock):
         return False, "Error: An item with this ID already exists."
     
     # Add new product entry to inventory dictionary
-    inventory[item_id] = {
-        "name": name,
-        "price": price,
-        "stock": stock,
-    }
+    inventory[item_id] = Item(item_id, name, price, stock)
     return True, f"Successfully added '{name}' (ID: {item_id}) to inventory!"
 
 def delete_item(inventory, item_id):
@@ -94,7 +89,7 @@ def delete_item(inventory, item_id):
     """
     if item_id in inventory:
         removed_item = inventory.pop(item_id)
-        return True, f"Successfully removed '{removed_item['name']}' from inventory."
+        return True, f"Successfully removed '{removed_item.name}' from inventory."
     return False, "Error: Item ID not found."
 
 def calc_price(base_price, tax_rate=0.075, order_total=0.0):
@@ -117,25 +112,11 @@ def calc_price(base_price, tax_rate=0.075, order_total=0.0):
     return round(final_price, 2)
 
 def filter_low_stock(inventory, limit):
-    """Filter inventory items falling below a specified threshold limit.
-    
-    Args:
-        inventory (dict): The main inventory data structure.
-        limit (int): Stock threshold limit.
-        
-    Returns:
-        dict: Filtered dictionary of low-stock items.
-    """
-    is_low_stock = lambda data: data["stock"] < limit
-    return {item_id: data for item_id, data in inventory.items() if is_low_stock(data)}
+    """Filter items below threshold stock limit."""
+    return {item_id: item for item_id, item in inventory.items() if item.stock < limit}
 
 def display_low_stock_report(inventory, limit):
-    """Print a formatted report of items that have fallen below the stock threshold.
-    
-    Args:
-        inventory (dict): The main inventory data structure.
-        limit (int): Stock threshold limit.
-    """
+    """Print formatted report of low-stock items."""
     low_stock_items = filter_low_stock(inventory, limit)
     
     if not low_stock_items:
@@ -149,33 +130,18 @@ def display_low_stock_report(inventory, limit):
     print("-" * 68)
     
     # Print formatted rows for low stock items
-    for item_id, data in low_stock_items.items():
-        name = data["name"]
-        price = f"${data['price']:.2f}"
-        stock = data["stock"]
-        print(f"{item_id:<8} | {name:<25} | {price:<10} | {stock:<15}")
+    for item_id, item in low_stock_items.items():
+        price_str = f"${item.price:.2f}"
+        print(f"{item_id:<8} | {item.name:<25} | {price_str:<10} | {item.stock:<15}")
     print("-" * 68)
 
 def sort_catalog_by_price(inventory, ascending=True):
-    """Sort the inventory catalog items by price.
-    
-    Args:
-        inventory (dict): The main inventory data structure.
-        ascending (bool): Sort low-to-high if True, high-to-low if False.
-        
-    Returns:
-        dict: Dictionary of sorted inventory items.
-    """
-    sorted_items = sorted(inventory.items(), key=lambda item: item[1]["price"], reverse=not ascending)
+    """Sort inventory catalog by item price."""
+    sorted_items = sorted(inventory.items(), key=lambda entry: entry[1].price, reverse=not ascending)
     return dict(sorted_items)
 
 def display_sorted_catalog(inventory, ascending=True):
-    """Print a formatted product catalog sorted by price.
-    
-    Args:
-        inventory (dict): The main inventory data structure.
-        ascending (bool): Sort direction flag.
-    """
+    """Print product catalog sorted by price."""
     sorted_items = sort_catalog_by_price(inventory, ascending=ascending)
     direction = "Ascending (Low to High)" if ascending else "Descending (High to Low)"
     
@@ -183,18 +149,18 @@ def display_sorted_catalog(inventory, ascending=True):
     print(f"\n--- Product Catalog ({direction}) ---\n")
     print(f"{'ID':<6} | {'Item Name':<25} | {'Price':<10} | {'Stock':<8}")
     print("-" * 55)
-    for item_id, data in sorted_items.items():
-        print(f"{item_id:<6} | {data['name']:<25} | ${data['price']:<9.2f} | {data['stock']:<8}")
+    for item_id, item in sorted_items.items():
+        print(f"{item_id:<6} | {item.name:<25} | ${item.price:<9.2f} | {item.stock:<8}")
     print("-" * 55)
 
 if __name__ == "__main__":
     print("--- Running Inventory Engine Tests ---")
 
-    # Sample inventory setup for testing functionality
+    # Sample inventory setup using OOP Item instances for testing functionality
     test_inventory = {
-        "101": {"name": "Notebook", "price": 2.50, "stock": 15},
-        "102": {"name": "Campus Hoodie", "price": 25.00, "stock": 3},
-        "103": {"name": "Sticky Notes", "price": 1.99, "stock": 50},
+        "101": Item("101", "Notebook", 2.50, 15),
+        "102": Item("102", "Campus Hoodie", 25.00, 3),
+        "103": Item("103", "Sticky Notes", 1.99, 50),
     }
 
     # 1. Test check_stock
@@ -218,7 +184,7 @@ if __name__ == "__main__":
     # 5. Test calc_price
     price_under_20 = calc_price(15.00, order_total=15.00)
     price_over_20 = calc_price(25.00, order_total=25.00)
-    print(f"\nPrice calculation test:")
+    print("\nPrice calculation test:")
     print(f"  $15.00 Order (No Discount + 7.5% Tax): ${price_under_20}")
     print(f"  $25.00 Order (10% Discount + 7.5% Tax): ${price_over_20}")
 

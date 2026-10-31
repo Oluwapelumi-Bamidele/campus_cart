@@ -1,78 +1,62 @@
-'''Main Script for Campus Cart System'''
+"""Main Script for Campus Cart System (OOP Phase 2 Refactored)"""
 
-# Import helper functions from external custom modules
+from models.item import Item
+from models.cart import ShoppingCart
 from inventory import (
     add_new_item,
     calc_price,
-    check_stock,
     delete_item,
     display_low_stock_report,
     display_sorted_catalog,
     update_stock,
     verify_and_add_stock,
-)
-from cart import add_item, remove_item, calculate_subtotal, stream_receipt_lines
-from logger import log_transaction, search_transaction_by_id
+    )
+from utils.logger import log_transaction, search_transaction_by_id
 
 
 def initialize_inventory():
-    # Define and return default items, prices, and available stock quantities
-    return {
-        "101": {"name": "Notebook", "price": 2.50, "stock": 15},
-        "102": {"name": "Campus Hoodie", "price": 25.00, "stock": 4},
-        "103": {"name": "Scientific Calculator", "price": 15.00, "stock": 8},
-        "104": {"name": "Ballpoint Pens (10-pack)", "price": 4.75, "stock": 40},
-        "105": {"name": "Highlighter Set", "price": 6.25, "stock": 22},
-        "106": {"name": "Backpack", "price": 32.99, "stock": 6},
-        "107": {"name": "USB Flash Drive 64GB", "price": 11.50, "stock": 18},
-        "108": {"name": "Water Bottle", "price": 9.99, "stock": 12},
-        "109": {"name": "Desk Lamp", "price": 19.95, "stock": 3},
-        "110": {"name": "Sticky Notes", "price": 1.99, "stock": 55},
-    }
+    """Populates initial catalog with Item objects."""
+    raw_data = [
+        ("101", "Notebook", 2.50, 15),
+        ("102", "Campus Hoodie", 25.00, 4),
+        ("103", "Scientific Calculator", 15.00, 8),
+        ("104", "Ballpoint Pens (10-pack)", 4.75, 40),
+        ("105", "Highlighter Set", 6.25, 22),
+        ("106", "Backpack", 32.99, 6),
+        ("107", "USB Flash Drive 64GB", 11.50, 18),
+        ("108", "Water Bottle", 9.99, 12),
+        ("109", "Desk Lamp", 19.95, 3),
+        ("110", "Sticky Notes", 1.99, 55),
+    ]
+    return {item_id: Item(item_id, name, price, stock) for item_id, name, price, stock in raw_data}
 
 @log_transaction
-def checkout_order(client_name, cart):
-    """
-    Calculates the subtotal and final total (with discount/tax), returning them 
-    to the @log_transaction decorator for official receipt generation and text logging.
-    """
-    subtotal = calculate_subtotal(cart)
+def checkout_order(client_name, cart_obj):
+    """Calculates final totals and passes to logger decorator."""
+    subtotal = cart_obj.calculate_subtotal()
     final_total = calc_price(subtotal, order_total=subtotal)
-    purchased_goods = [f"{item['name']} (x{item['quantity']})" for item in cart]
-    
+    purchased_goods = [f"{entry['item'].name} (x{entry['quantity']})" for entry in cart_obj.items]
     return subtotal, final_total, purchased_goods
 
-
-def display_user_cart(cart):
+def display_user_cart(cart_obj):
     print("\n--- Your Shopping Cart ---")
-    
-    # Check if cart has items; exit function early if empty
-    if not cart:
+    if not cart_obj.items:
         print("Your cart is currently empty.")
         return
     
-    # Print formatted table header
     print(f"{'ID':<6} | {'Item Name':<25} | {'Qty':<5} | {'Unit Price':<10} | {'Total':<10}")
     print("-" * 65)
-    
-    # Print each item line with calculated line totals
-    for item in cart:
-        item_id = item.get('item_id', 'N/A')
-        total = item['price'] * item['quantity']
-        print(f"{item_id:<6} | {item['name']:<25} | {item['quantity']:<5} | ${item['price']:<9.2f} | ${total:<9.2f}")
+    for entry in cart_obj.items:
+        item = entry["item"]
+        qty = entry["quantity"]
+        total = item.price * qty
+        print(f"{item.item_id:<6} | {item.name:<25} | {qty:<5} | ${item.price:<9.2f} | ${total:<9.2f}")
     print("-" * 65)
 
-
-def clear_cart_and_restore_stock(cart, inventory):
-    # Add back saved quantities to inventory stock before emptying cart
-    for item in cart:
-        if "item_id" in item and item["item_id"] in inventory:
-            update_stock(inventory, item["item_id"], item["quantity"])
-    cart.clear()
 
 # USER MENU WORKFLOW
 
-def user_menu(inventory, cart, client_name):
+def user_menu(inventory, cart_obj, client_name):
     # Keep showing user menu until user decides to go back
     while True:
         print(f"\n==========================================")
@@ -89,13 +73,11 @@ def user_menu(inventory, cart, client_name):
 
         choice = input("\nEnter choice (1-8): ").strip()
 
-        # Option 1: Show product catalog sorted by price
         if choice == "1":
             print("\nSort option: 1. Low-to-High Price | 2. High-to-Low Price")
             sort_c = input("Select option (1-2): ").strip()
             display_sorted_catalog(inventory, ascending=(sort_c != "2"))
 
-        # Option 2: Filter products by minimum stock threshold
         elif choice == "2":
             try:
                 limit = int(input("Enter stock threshold limit: "))
@@ -103,92 +85,72 @@ def user_menu(inventory, cart, client_name):
             except ValueError:
                 print("\n[Error] Invalid number input.")
 
-        # Option 3: Add selected item to user cart
         elif choice == "3":
             display_sorted_catalog(inventory, ascending=True)
             item_id = input("\nEnter Item ID to add: ").strip()
 
             if item_id in inventory:
-                item_data = inventory[item_id]
-                available = item_data["stock"]
-                if available > 0:
+                item_obj = inventory[item_id]
+                if item_obj.stock > 0:
                     try:
-                        qty = int(input(f"Enter quantity for '{item_data['name']}' (Available: {available}): "))
-                        if 0 < qty <= available:
-                            # Add item to cart and reduce available inventory stock
-                            add_item(cart, item_data["name"], item_data["price"], quantity=qty, item_id=item_id)
-                            update_stock(inventory, item_id, -qty)
-                            print(f"\n[Success] Added {qty} x '{item_data['name']}' to cart!")
-                        else:
-                            print(f"\n[Error] Quantity must be between 1 and {available}.")
+                        qty = int(input(f"Enter quantity for '{item_obj.name}' (Available: {item_obj.stock}): "))
+                        success, msg = cart_obj.add_item(item_obj, quantity=qty)
+                        print(f"\n[{'Success' if success else 'Error'}] {msg}")
                     except ValueError:
                         print("\n[Error] Invalid number format.")
                 else:
-                    print(f"\n[Sorry] '{item_data['name']}' is out of stock.")
+                    print(f"\n[Sorry] '{item_obj.name}' is out of stock.")
             else:
                 print("\n[Error] Invalid Item ID.")
 
-        # Option 4: Remove items or lower quantity from cart
         elif choice == "4":
-            if not cart:
+            if not cart_obj.items:
                 print("\n[Notice] Cart is empty.")
             else:
-                display_user_cart(cart)
+                display_user_cart(cart_obj)
                 item_id = input("\nEnter Item ID to remove: ").strip()
-                cart_item = next((i for i in cart if i.get("item_id") == item_id), None)
+                entry = next((e for e in cart_obj.items if e["item"].item_id == item_id), None)
                 
-                if cart_item:
+                if entry:
                     try:
-                        rem_qty = int(input(f"Quantity to remove (Cart Qty: {cart_item['quantity']}): "))
-                        if rem_qty > 0:
-                            success, msg, qty_removed = remove_item(cart, item_id, rem_qty)
-                            if success:
-                                update_stock(inventory, item_id, qty_removed)
-                                print(f"\n[Success] {msg}")
-                            else:
-                                print(f"\n[Error] {msg}")
-                        else:
-                            print("\n[Error] Please enter a valid positive number") 
+                        rem_qty = int(input(f"Quantity to remove (Cart Qty: {entry['quantity']}): "))
+                        success, msg, _ = cart_obj.remove_item(item_id, rem_qty)
+                        print(f"\n[{'Success' if success else 'Error'}] {msg}")
                     except ValueError:
                         print("\n[Error] Invalid number.")
                 else:
                     print("\n[Error] Item not in cart.")
 
-        # Option 5: Display cart items and receipt preview
         elif choice == "5":
-            display_user_cart(cart)
-            if cart:
+            display_user_cart(cart_obj)
+            if cart_obj.items:
                 print("\n--- Receipt Stream Preview ---")
-                for line in stream_receipt_lines(cart):
+                for line in cart_obj.stream_receipt_lines():
                     print(f"  > {line}")
 
-        # Option 6: Cancel cart order and restore store stock
         elif choice == "6":
-            if not cart:
+            if not cart_obj.items:
                 print("\n[Notice] Your cart is already empty.")
             else:
-                clear_cart_and_restore_stock(cart, inventory)
+                cart_obj.clear()
                 print("\n[Success] Cart cleared! All reserved stock returned to inventory.")
 
-        # Option 7: Process order payment and clear cart
         elif choice == "7":
-            if not cart:
+            if not cart_obj.items:
                 print("\n[Notice] Cart is empty.")
             else:
                 print("\n--- Pre-Checkout Receipt Preview ---")
-                for line in stream_receipt_lines(cart):
+                for line in cart_obj.stream_receipt_lines():
                     print(f"  > {line}")
                 
                 confirm = input("\nProceed with payment? (y/n): ").strip().lower()
                 if confirm == "y":
-                    # Triggers @log_transaction decorator (displays official receipt, logs data to text file)
-                    checkout_order(client_name, cart)
-                    cart.clear()
+                    checkout_order(client_name, cart_obj)
+                    cart_obj.items.clear()  # Clear items post payment
                     print("\nThank you for your purchase! Returning to User Menu...")
                 else:
-                    print("\n[Payment Cancelled] Returning to User Menu. Items remain in your cart.")
+                    print("\n[Payment Cancelled] Returning to User Menu.")
 
-        # Option 8: Exit user menu loop back to role selection
         elif choice == "8":
             print("\nReturning to Role Selection...")
             break
@@ -200,14 +162,14 @@ def admin_menu(inventory):
         print("\n==========================================")
         print("          ADMINISTRATOR PANEL             ")
         print("==========================================")
-        print("1. View Full Catalog (Includes Stock & Unit Codes)")
+        print("1. View Full Catalog")
         print("2. Check Stock Below Threshold Limit")
         print("3. Restock Item")
-        print("4. Directly Modify Item Stock (Add/Remove)")
+        print("4. Directly Modify Item Stock")
         print("5. Add Brand New Product to Catalog")
         print("6. Delete Item from Catalog")
         print("7. Search Transaction Record by ID")
-        print("8. Return to Role Selection / Main Interface")
+        print("8. Return to Role Selection")
         print("9. Exit Application Entirely")
 
         choice = input("\nEnter choice (1-9): ").strip()
@@ -225,11 +187,8 @@ def admin_menu(inventory):
             item_id = input("\nEnter Item ID to restock: ").strip()
             try:
                 add_qty = int(input("Enter quantity to add to stock: "))
-                if add_qty > 0:
-                    success, msg = verify_and_add_stock(inventory, item_id, add_qty)
-                    print(f"\n[{'Success' if success else 'Error'}] {msg}")
-                else:
-                    print("\n[Error] Quantity must be greater than 0.")
+                success, msg = verify_and_add_stock(inventory, item_id, add_qty)
+                print(f"\n[{'Success' if success else 'Error'}] {msg}")
             except ValueError:
                 print("\n[Error] Invalid quantity input.")
         elif choice == "4":
@@ -237,12 +196,12 @@ def admin_menu(inventory):
             item_id = input("\nEnter Item ID to modify: ").strip()
             if item_id in inventory:
                 item = inventory[item_id]
-                print(f"Selected: {item['name']} | Current Stock: {item['stock']}")
+                print(f"Selected: {item.name} | Current Stock: {item.stock}")
                 try:
-                    change = int(input("Enter quantity change (Positive to add, Negative to remove e.g., +5 or -3): "))
+                    change = int(input("Enter quantity change (+5 or -3): "))
                     success, result = update_stock(inventory, item_id, change)
                     if success:
-                        print(f"\n[Success] Updated stock for '{item['name']}'. New Stock: {result}")
+                        print(f"\n[Success] Updated stock for '{item.name}'. New Stock: {result}")
                     else:
                         print(f"\n[{result}]")
                 except ValueError:
@@ -258,7 +217,7 @@ def admin_menu(inventory):
                 success, msg = add_new_item(inventory, item_id, name, price, stock)
                 print(f"\n[{'Success' if success else 'Error'}] {msg}")
             except ValueError:
-                print("\n[Error] Invalid numerical inputs for price or stock.")
+                print("\n[Error] Invalid numerical inputs.")
         elif choice == "6":
             display_sorted_catalog(inventory, ascending=True)
             item_id = input("\nEnter Item ID to delete from stock: ").strip()
@@ -267,9 +226,6 @@ def admin_menu(inventory):
                 success, msg = delete_item(inventory, item_id)
                 print(f"\n[{'Success' if success else 'Error'}] {msg}")
         elif choice == "7":
-            print("\n==========================================")
-            print("       SEARCH TRANSACTION RECORD          ")
-            print("==========================================")
             tx_id = input("Enter Transaction ID (e.g., A9F321BC): ").strip()
             success, result_msg = search_transaction_by_id(tx_id)
             if success:
@@ -280,25 +236,19 @@ def admin_menu(inventory):
             else:
                 print(f"\n[{result_msg}]")
         elif choice == "8":
-            print("\nReturning to Role Selection Interface...")
             break
         elif choice == "9":
             print("\nExiting Campus Cart System. Goodbye!")
             exit()
-        else:
-            print("\n[Error] Invalid selection. Choose between 1 and 9.")
-
-# MAIN INTERFACE ENTRY POINT
 
 def main():
     inventory = initialize_inventory()
-    cart = []
+    cart_obj = ShoppingCart()
 
     while True:
         print("\n==================================================")
         print("    WELCOME TO CAMPUS CART STUDENT STORE SYSTEM   ")
         print("==================================================")
-        print("Please select your role interface:")
         print("1. User / Student Interface")
         print("2. Administrator Interface")
         print("3. Exit System")
@@ -309,14 +259,12 @@ def main():
             client_name = input("\nEnter your Name (Student/Client): ").strip()
             if not client_name:
                 client_name = "Guest Student"
-            user_menu(inventory, cart, client_name)
+            user_menu(inventory, cart_obj, client_name)
         elif role_choice == "2":
             admin_menu(inventory)
         elif role_choice == "3":
-            print("\nThank you for using Campus Cart! System shut down.")
+            print("\nThank you for using Campus Cart!")
             break
-        else:
-            print("\n[Error] Invalid selection. Choose 1, 2, or 3.")
 
 if __name__ == "__main__":
     main()
