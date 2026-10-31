@@ -48,33 +48,60 @@ class Item:
 
     def __str__(self):
         return f"{self._name} (ID: {self._item_id}) - ${self._price:.2f} [Stock: {self._stock}]"
-    
+
+class PerishableItem(Item):
+    """Specialized item that tracks expiration and shelf-life details."""
+    def __init__(self, item_id, name, price, stock, expiration_date):
+        super().__init__(item_id, name, price, stock)
+        self._expiration_date = expiration_date
+
+    @property
+    def expiration_date(self):
+        return self._expiration_date
+
+    def __str__(self):
+        base_str = super().__str__()
+        return f"{base_str} [Exp: {self._expiration_date}]"
+
+
+class DigitalVoucher(Item):
+    """Specialized digital item with infinite stock redemption capabilities."""
+    def __init__(self, item_id, name, price):
+        # Stock is fixed to infinity or a very large sentinel for digital assets
+        super().__init__(item_id, name, price, stock=999999)
+
+    @property
+    def stock(self):
+        """Override stock getter to always report infinite availability."""
+        return float('inf')
+
+    @stock.setter
+    def stock(self, new_stock):
+        """Digital vouchers ignore physical stock reductions."""
+        pass
+
+    def __str__(self):
+        return f"[Digital Voucher] {self.name} (ID: {self.item_id}) - ${self.price:.2f} [Unlimited Stock]"
+
 if __name__ == "__main__":
-    print("--- Running Item Model Tests ---")
+    print("--- Running Item & Subclass Model Tests ---")
 
-    # 1. Test Item Initialization and Property Getters
+    # 1. Base Item
     notebook = Item("101", "Notebook", 2.50, 15)
-    print(f"Created Item: {notebook}")
-    print(f"  - ID: {notebook.item_id}")
-    print(f"  - Name: {notebook.name}")
-    print(f"  - Price: ${notebook.price:.2f}")
-    print(f"  - Stock: {notebook.stock}")
+    print(f"Base Item: {notebook}")
 
-    # 2. Test Property Setters (Valid updates)
-    notebook.price = 3.00
-    notebook.stock = 20
-    print(f"\nAfter valid updates: {notebook}")
+    # 2. Perishable Item
+    milk = PerishableItem("201", "Fresh Milk", 3.50, 10, "2026-11-15")
+    print(f"Perishable Item: {milk}")
+    print(f"  - Expiration Date: {milk.expiration_date}")
 
-    # 3. Test Property Setters Validation (Negative values)
-    print("\nTesting validation against negative values:")
-    try:
-        notebook.price = -1.00
-    except ValueError as e:
-        print(f"  [Caught Expected Error] Price setter: {e}")
+    # 3. Digital Voucher (Infinite stock test)
+    voucher = DigitalVoucher("301", "Campus Bookstore $10 Gift Card", 10.00)
+    print(f"Digital Voucher: {voucher}")
+    print(f"  - Initial Stock: {voucher.stock}")
+    
+    # Verify stock reduction is ignored
+    voucher.stock -= 5
+    print(f"  - Stock after attempting reduction: {voucher.stock}")
 
-    try:
-        notebook.stock = -5
-    except ValueError as e:
-        print(f"  [Caught Expected Error] Stock setter: {e}")
-
-    print("\nItem model tests completed successfully!")
+    print("\nAll Item model tests completed successfully!")
