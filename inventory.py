@@ -1,6 +1,5 @@
 """
 Inventory Engine Module
-
 Provides tools for managing product inventory levels, calculating pricing,
 filtering stock levels, displaying reports, and administrative management.
 """
