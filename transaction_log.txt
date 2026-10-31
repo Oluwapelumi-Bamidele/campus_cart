@@ -1,0 +1,100 @@
+--- TRANSACTION RECORD ---
+Transaction ID      : F8B5A8EB
+Client Name         : wet
+Purchased Goods     : Backpack (x1)
+Original Subtotal   : $32.99
+Discount Applied    : $3.30
+Final Amount Paid   : $31.92
+Time of Purchase    : 2026-10-31 22:21:47
+--------------------------
+
+--- TRANSACTION RECORD ---
+Transaction ID      : 24F325C2
+Client Name         : set
+Purchased Goods     : Backpack (x1)
+Original Subtotal   : $32.99
+Discount Applied    : $3.30
+Final Amount Paid   : $31.92
+Time of Purchase    : 2026-10-31 22:33:24
+--------------------------
+
+--- TRANSACTION RECORD ---
+Transaction ID      : 12E39636
+Client Name         : queen
+Purchased Goods     : Backpack (x6)
+Original Subtotal   : $197.94
+Discount Applied    : $19.79
+Final Amount Paid   : $191.51
+Time of Purchase    : 2026-10-31 22:35:17
+--------------------------
+
+--- TRANSACTION RECORD ---
+Transaction ID      : C099546C
+Client Name         : one
+Purchased Goods     : Backpack (x6)
+Original Subtotal   : $197.94
+Discount Applied    : $19.79
+Final Amount Paid   : $191.51
+Time of Purchase    : 2026-10-31 22:45:01
+--------------------------
+
+--- TRANSACTION RECORD ---
+Transaction ID      : 19ED39FC
+Client Name         : two
+Purchased Goods     : Backpack (x6)
+Original Subtotal   : $197.94
+Discount Applied    : $19.79
+Final Amount Paid   : $191.51
+Time of Purchase    : 2026-10-31 22:46:13
+--------------------------
+
+--- TRANSACTION RECORD ---
+Transaction ID      : 03E7CAF0
+Client Name         : one
+Purchased Goods     : Backpack (x6)
+Original Subtotal   : $197.94
+Discount Applied    : $19.79
+Final Amount Paid   : $191.51
+Time of Purchase    : 2026-10-31 22:51:48
+--------------------------
+
+--- TRANSACTION RECORD ---
+Transaction ID      : 0968605D
+Client Name         : one
+Purchased Goods     : Backpack (x6)
+Original Subtotal   : $197.94
+Discount Applied    : $19.79
+Final Amount Paid   : $191.51
+Time of Purchase    : 2026-10-31 22:55:31
+--------------------------
+
+--- TRANSACTION RECORD ---
+Transaction ID      : 6D21BA07
+Client Name         : one
+Purchased Goods     : Backpack (x6)
+Original Subtotal   : $197.94
+Discount Applied    : $19.79
+Final Amount Paid   : $191.51
+Time of Purchase    : 2026-10-31 22:57:21
+--------------------------
+
+--- TRANSACTION RECORD ---
+Transaction ID      : 147113B4
+Client Name         : one
+Purchased Goods     : Backpack (x6)
+Original Subtotal   : $197.94
+Discount Applied    : $19.79
+Final Amount Paid   : $191.51
+Time of Purchase    : 2026-10-31 23:02:00
+--------------------------
+
+--- TRANSACTION RECORD ---
+Transaction ID      : FA62BCDF
+Client Name         : three
+Purchased Goods     : Backpack (x6)
+Original Subtotal   : $197.94
+Discount Applied    : $19.79
+Final Amount Paid   : $191.51
+Time of Purchase    : 2026-10-31 23:04:04
+--------------------------
+

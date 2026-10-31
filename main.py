@@ -1,4 +1,4 @@
-"""Main Script for Campus Cart System (OOP Phase 2 Refactored)"""
+"""Main Script for Campus Cart System (OOP Phase Refactored)"""
 
 from models.item import Item
 from models.cart import ShoppingCart
@@ -10,31 +10,42 @@ from inventory import (
     display_sorted_catalog,
     update_stock,
     verify_and_add_stock,
-    )
+)
+from models.payment import CashPayment, CardPayment, MobileMoneyPayment
 from utils.logger import log_transaction, search_transaction_by_id
 
 
-def initialize_inventory():
-    """Populates initial catalog with Item objects."""
-    raw_data = [
-        ("101", "Notebook", 2.50, 15),
-        ("102", "Campus Hoodie", 25.00, 4),
-        ("103", "Scientific Calculator", 15.00, 8),
-        ("104", "Ballpoint Pens (10-pack)", 4.75, 40),
-        ("105", "Highlighter Set", 6.25, 22),
-        ("106", "Backpack", 32.99, 6),
-        ("107", "USB Flash Drive 64GB", 11.50, 18),
-        ("108", "Water Bottle", 9.99, 12),
-        ("109", "Desk Lamp", 19.95, 3),
-        ("110", "Sticky Notes", 1.99, 55),
-    ]
-    return {item_id: Item(item_id, name, price, stock) for item_id, name, price, stock in raw_data}
+# GLOBAL PERSISTENT INVENTORY (Prevents stock from resetting between user sessions)
+global_inventory = {
+    "101": Item("101", "Notebook", 2.50, 15),
+    "102": Item("102", "Campus Hoodie", 25.00, 4),
+    "103": Item("103", "Scientific Calculator", 15.00, 8),
+    "104": Item("104", "Ballpoint Pens (10-pack)", 4.75, 40),
+    "105": Item("105", "Highlighter Set", 6.25, 22),
+    "106": Item("106", "Backpack", 32.99, 6),
+    "107": Item("107", "USB Flash Drive 64GB", 11.50, 18),
+    "108": Item("108", "Water Bottle", 9.99, 12),
+    "109": Item("109", "Desk Lamp", 19.95, 3),
+    "110": Item("110", "Sticky Notes", 1.99, 55),
+}
 
 @log_transaction
-def checkout_order(client_name, cart_obj):
-    """Calculates final totals and passes to logger decorator."""
+def checkout_order(client_name, cart_obj, payment_processor):
+    """
+    Calculates final totals, executes polymorphic payment processing, 
+    and passes records to the logger decorator.
+    """
     subtotal = cart_obj.calculate_subtotal()
     final_total = calc_price(subtotal, order_total=subtotal)
+    
+    # 1. Execute polymorphic payment via the injected processor
+    success, payment_message = payment_processor.process_payment(final_total)
+    if not success:
+        raise ValueError(f"Payment failed: {payment_message}")
+    
+    print(f"[Payment Status] {payment_message}")
+
+    # 2. Gather purchased goods descriptions
     purchased_goods = [f"{entry['item'].name} (x{entry['quantity']})" for entry in cart_obj.items]
     return subtotal, final_total, purchased_goods
 
@@ -57,7 +68,7 @@ def display_user_cart(cart_obj):
 # USER MENU WORKFLOW
 
 def user_menu(inventory, cart_obj, client_name):
-    # Keep showing user menu until user decides to go back
+    # Keep showing user menu until user decides to go back or checks out
     while True:
         print(f"\n==========================================")
         print(f"        USER MAIN MENU (Welcome, {client_name})")
@@ -91,9 +102,11 @@ def user_menu(inventory, cart_obj, client_name):
 
             if item_id in inventory:
                 item_obj = inventory[item_id]
-                if item_obj.stock > 0:
+                # Check if stock is greater than 0 (handles infinite stock for digital vouchers too)
+                if item_obj.stock > 0 or item_obj.stock == float('inf'):
                     try:
-                        qty = int(input(f"Enter quantity for '{item_obj.name}' (Available: {item_obj.stock}): "))
+                        max_stock_str = str(int(item_obj.stock)) if item_obj.stock != float('inf') else "Unlimited"
+                        qty = int(input(f"Enter quantity for '{item_obj.name}' (Available: {max_stock_str}): "))
                         success, msg = cart_obj.add_item(item_obj, quantity=qty)
                         print(f"\n[{'Success' if success else 'Error'}] {msg}")
                     except ValueError:
@@ -145,15 +158,42 @@ def user_menu(inventory, cart_obj, client_name):
                 
                 confirm = input("\nProceed with payment? (y/n): ").strip().lower()
                 if confirm == "y":
-                    checkout_order(client_name, cart_obj)
-                    cart_obj.items.clear()  # Clear items post payment
-                    print("\nThank you for your purchase! Returning to User Menu...")
+                    # Prompt for payment strategy selection
+                    print("\nSelect Payment Method:")
+                    print("1. Cash Payment")
+                    print("2. Credit/Debit Card")
+                    print("3. Mobile Money (MoMo/OPay/PalmPay)")
+                    pay_choice = input("Enter choice (1-3): ").strip()
+                    
+                    # Instantiate the appropriate polymorphic payment processor
+                    if pay_choice == "2":
+                        card_num = input("Enter 16-digit card number: ").strip()
+                        processor = CardPayment(card_num)
+                    elif pay_choice == "3":
+                        phone = input("Enter mobile wallet phone number: ").strip()
+                        provider = input("Enter provider name (e.g., OPay, MoMo): ").strip()
+                        processor = MobileMoneyPayment(phone, provider or "MobileMoney")
+                    else:
+                        processor = CashPayment()
+
+                    # Execute checkout with the chosen payment processor
+                    try:
+                        checkout_order(client_name, cart_obj, processor)
+                        
+                        # Clear items list directly without triggering stock restoration refunds
+                        cart_obj.items.clear() 
+                        
+                        print("\nThank you for your purchase! Returning to Main Landing Page...")
+                        return "return_to_main"
+                        
+                    except Exception as e:
+                        print(f"\n[Payment Error] {e}")
                 else:
                     print("\n[Payment Cancelled] Returning to User Menu.")
 
         elif choice == "8":
             print("\nReturning to Role Selection...")
-            break
+            return "return_to_main"
 
 # ADMIN MENU WORKFLOW
 
@@ -238,12 +278,11 @@ def admin_menu(inventory):
         elif choice == "8":
             break
         elif choice == "9":
-            print("\nExiting Campus Cart System. Goodbye!")
+            print("\nExiting Campus Cart System.Goodbye!")
             exit()
 
 def main():
-    inventory = initialize_inventory()
-    cart_obj = ShoppingCart()
+    inventory = global_inventory  # Use the persistent global inventory dictionary
 
     while True:
         print("\n==================================================")
@@ -259,7 +298,14 @@ def main():
             client_name = input("\nEnter your Name (Student/Client): ").strip()
             if not client_name:
                 client_name = "Guest Student"
-            user_menu(inventory, cart_obj, client_name)
+            
+            # Instantiate a brand new, empty cart for each user session
+            user_cart = ShoppingCart()
+            
+            result = user_menu(inventory, user_cart, client_name)
+            if result == "return_to_main":
+                continue
+
         elif role_choice == "2":
             admin_menu(inventory)
         elif role_choice == "3":
