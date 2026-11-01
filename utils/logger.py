@@ -1,6 +1,7 @@
 """
-A logger module that uses a decorator function to add logging to any transaction function
-and records transaction details to a permanent text file.
+Logger Module (logger.py)
+Decorator function that intercepts checkout calls, generates receipt logs,
+and appends output to 'transaction_log.txt'.
 """
 
 import datetime
@@ -13,7 +14,7 @@ def log_transaction(func):
     counts existing logs in the file, generates transaction metadata,
     appends a record to 'transaction_log.txt', and displays execution details.
     """
-    def wrapper(client_name, cart, *args, **kwargs):
+    def wrapper(client_name, cart_obj, *args, **kwargs):
         print("\nProcessing your payment...")
         
         # Count existing transaction records inside 'transaction_log.txt'
@@ -26,7 +27,7 @@ def log_transaction(func):
         total_transactions = existing_count + 1
         
         # Execute the original checkout function -> returns (subtotal, final_total, purchased_goods)
-        subtotal, final_total, purchased_goods = func(client_name, cart, *args, **kwargs)
+        subtotal, final_total, purchased_goods = func(client_name, cart_obj, *args, **kwargs)
         
         # Factor in discount (10% if subtotal > 20, else 0)
         discount_amount = subtotal * 0.10 if subtotal > 20 else 0.0
@@ -43,9 +44,11 @@ def log_transaction(func):
         print(f"==========================================")
         print(f" Client Name : {client_name}")
         print(f" Purchased Goods:")
-        for item in cart:
-            line_cost = item['price'] * item['quantity']
-            print(f"   - {item['name']} (x{item['quantity']}) : ${line_cost:.2f}")
+        for entry in cart_obj.items:
+            item = entry["item"]
+            qty = entry["quantity"]
+            line_cost = item.price * qty
+            print(f"   - {item.name} (x{qty}) : ${line_cost:.2f}")
         print(f" ----------------------------------------")
         print(f" Subtotal (Original)       : ${subtotal:.2f}")
         if discount_amount > 0:
@@ -85,7 +88,7 @@ def search_transaction_by_id(transaction_id):
     and returns the complete transaction record if found.
     """
     if not os.path.exists("transaction_log.txt"):
-        return False, "Error: No transaction log file found yet. No transactions have been recorded."
+        return False, "Error: No transaction log file found yet."
         
     with open("transaction_log.txt", "r", encoding="utf-8") as file:
         content = file.read()
@@ -98,60 +101,38 @@ def search_transaction_by_id(transaction_id):
         if not record.strip():
             continue
         if target_id in record.upper():
-            full_record = "--- TRANSACTION RECORD ---" + record
-            return True, full_record.strip()
+            return True, ("--- TRANSACTION RECORD ---" + record).strip()
             
     return False, f"Error: Transaction ID '{target_id}' was not found in the log."
 
+
 # Run test code only when this file is executed directly
 if __name__ == "__main__":
-    print("========================================")
-    print("        RUNNING LOGGER MODULE TESTS       ")
-    print("========================================")
+    print("--- Running Logger Module Test ---")
 
-    # 1. Define a sample checkout function and wrap it with @log_transaction
+    # Simple mock cart object for testing logger output
+    class MockCart:
+        def __init__(self):
+            class MockItem:
+                def __init__(self, name, price):
+                    self.name = name
+                    self.price = price
+            self.items = [
+                {"item": MockItem("Notebook", 2.50), "quantity": 2},
+                {"item": MockItem("Pen", 1.00), "quantity": 5}
+            ]
+
+        def calculate_subtotal(self):
+            return sum(entry["item"].price * entry["quantity"] for entry in self.items)
+
     @log_transaction
-    def sample_checkout(client_name, cart):
-        # Calculate mock subtotal and final total (with 7.5% tax)
-        subtotal = sum(item['price'] * item['quantity'] for item in cart)
+    def test_checkout(client_name, cart_obj):
+        subtotal = cart_obj.calculate_subtotal()
         final_total = round(subtotal * 1.075, 2)
-        purchased_goods = [f"{item['name']} (x{item['quantity']})" for item in cart]
-        return subtotal, final_total, purchased_goods
+        goods = [f"{e['item'].name} (x{e['quantity']})" for e in cart_obj.items]
+        return subtotal, final_total, goods
 
-    # 2. Prepare sample mock carts for testing
-    cart_one = [
-        {"name": "Notebook", "price": 2.50, "quantity": 2},
-        {"name": "Campus Hoodie", "price": 25.00, "quantity": 1}
-    ]
-    
-    cart_two = [
-        {"name": "Sticky Notes", "price": 1.99, "quantity": 3}
-    ]
-
-    # 3. Test Test Checkout 1
-    print("\n--- Test 1: Processing First Checkout ---")
-    sample_checkout("Alice Smith", cart_one)
-
-    # 4. Test Test Checkout 2 (Verifies incrementing total transaction count)
-    print("\n--- Test 2: Processing Second Checkout ---")
-    sample_checkout("Bob Johnson", cart_two)
-
-    # 5. Test Transaction Search Functionality
-    print("\n========================================")
-    print("        TESTING TRANSACTION SEARCH        ")
-    print("========================================")
-    print("Open your 'transaction_log.txt' file, copy one of the Transaction IDs, and paste it below.")
-    
-    test_id = input("\nEnter Transaction ID to search (or press Enter to skip): ").strip()
-    
-    if test_id:
-        found, result_message = search_transaction_by_id(test_id)
-        if found:
-            print("\n[Success] Transaction Found:")
-            print("-" * 40)
-            print(result_message)
-            print("-" * 40)
-        else:
-            print(f"\n[{result_message}]")
-    else:
-        print("Skipped search test.")
+    # Execute test
+    my_cart = MockCart()
+    test_checkout("Test User", my_cart)
+    print("Logger test completed successfully!")

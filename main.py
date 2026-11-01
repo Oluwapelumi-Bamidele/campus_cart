@@ -1,322 +1,302 @@
-'''Main Script for Campus Cart System'''
+"""
+CampusCart Streamlit Frontend Application (app.py)
+Phase 6: Full Feature Integration (Student Storefront & Admin Panel Suite)
+"""
 
-# Import helper functions from external custom modules
+import streamlit as st
+from models.item import Item, PerishableItem, DigitalVoucher
+from models.cart import ShoppingCart
+from models.payment import CashPayment, CardPayment, MobileMoneyPayment
 from inventory import (
-    add_new_item,
     calc_price,
-    check_stock,
+    add_new_item,
     delete_item,
-    display_low_stock_report,
-    display_sorted_catalog,
     update_stock,
     verify_and_add_stock,
+    filter_low_stock
 )
-from cart import add_item, remove_item, calculate_subtotal, stream_receipt_lines
-from logger import log_transaction, search_transaction_by_id
+from utils.logger import log_transaction, search_transaction_by_id
 
+# 1. PAGE CONFIGURATION
+st.set_page_config(
+    page_title="CampusCart Store",
+    page_icon="🛒",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-def initialize_inventory():
-    # Define and return default items, prices, and available stock quantities
-    return {
-        "101": {"name": "Notebook", "price": 2.50, "stock": 15},
-        "102": {"name": "Campus Hoodie", "price": 25.00, "stock": 4},
-        "103": {"name": "Scientific Calculator", "price": 15.00, "stock": 8},
-        "104": {"name": "Ballpoint Pens (10-pack)", "price": 4.75, "stock": 40},
-        "105": {"name": "Highlighter Set", "price": 6.25, "stock": 22},
-        "106": {"name": "Backpack", "price": 32.99, "stock": 6},
-        "107": {"name": "USB Flash Drive 64GB", "price": 11.50, "stock": 18},
-        "108": {"name": "Water Bottle", "price": 9.99, "stock": 12},
-        "109": {"name": "Desk Lamp", "price": 19.95, "stock": 3},
-        "110": {"name": "Sticky Notes", "price": 1.99, "stock": 55},
+st.title("🛒 CampusCart Student Store System")
+st.caption("Enterprise-Grade OOP Store Front & Administrator Management Dashboard")
+st.divider()
+
+# 2. REACTIVE SESSION STATE INITIALIZATION
+if "inventory" not in st.session_state:
+    st.session_state.inventory = {
+        "101": Item("101", "Notebook", 2.50, 15),
+        "102": Item("102", "Campus Hoodie", 25.00, 4),
+        "103": Item("103", "Scientific Calculator", 15.00, 8),
+        "104": Item("104", "Ballpoint Pens (10-pack)", 4.75, 40),
+        "105": PerishableItem("105", "Fresh Milk", 3.50, 10, expiration_date="2026-11-15"),
+        "106": DigitalVoucher("106", "Campus Gift Card $20", 20.00),
     }
 
+if "cart" not in st.session_state:
+    st.session_state.cart = ShoppingCart()
+
+inventory = st.session_state.inventory
+cart = st.session_state.cart
+
+# 3. DECORATED CHECKOUT BRIDGE FOR STREAMLIT
 @log_transaction
-def checkout_order(client_name, cart):
-    """
-    Calculates the subtotal and final total (with discount/tax), returning them 
-    to the @log_transaction decorator for official receipt generation and text logging.
-    """
-    subtotal = calculate_subtotal(cart)
+def execute_streamlit_checkout(client_name, cart_obj, payment_processor):
+    subtotal = cart_obj.calculate_subtotal()
     final_total = calc_price(subtotal, order_total=subtotal)
-    purchased_goods = [f"{item['name']} (x{item['quantity']})" for item in cart]
     
+    success, payment_msg = payment_processor.process_payment(final_total)
+    if not success:
+        raise ValueError(payment_msg)
+        
+    purchased_goods = [f"{entry['item'].name} (x{entry['quantity']})" for entry in cart_obj.items]
     return subtotal, final_total, purchased_goods
 
 
-def display_user_cart(cart):
-    print("\n--- Your Shopping Cart ---")
+# 4. MAIN TABS: STUDENT STOREFRONT & ADMINISTRATOR PANEL
+store_tab, admin_tab = st.tabs(["🛍️ Student Storefront", "⚙️ Administrator Panel"])
+
+with store_tab:
+    st.subheader("📦 Available Products Catalog")
     
-    # Check if cart has items; exit function early if empty
-    if not cart:
-        print("Your cart is currently empty.")
-        return
+    # Sorting option
+    sort_option = st.radio("Sort Catalog By:", ["Price: Low to High", "Price: High to Low"], horizontal=True)
+    ascending_sort = (sort_option == "Price: Low to High")
     
-    # Print formatted table header
-    print(f"{'ID':<6} | {'Item Name':<25} | {'Qty':<5} | {'Unit Price':<10} | {'Total':<10}")
-    print("-" * 65)
-    
-    # Print each item line with calculated line totals
-    for item in cart:
-        item_id = item.get('item_id', 'N/A')
-        total = item['price'] * item['quantity']
-        print(f"{item_id:<6} | {item['name']:<25} | {item['quantity']:<5} | ${item['price']:<9.2f} | ${total:<9.2f}")
-    print("-" * 65)
+    sorted_items = sorted(inventory.items(), key=lambda entry: entry[1].price, reverse=not ascending_sort)
 
-
-def clear_cart_and_restore_stock(cart, inventory):
-    # Add back saved quantities to inventory stock before emptying cart
-    for item in cart:
-        if "item_id" in item and item["item_id"] in inventory:
-            update_stock(inventory, item["item_id"], item["quantity"])
-    cart.clear()
-
-# USER MENU WORKFLOW
-
-def user_menu(inventory, cart, client_name):
-    # Keep showing user menu until user decides to go back
-    while True:
-        print(f"\n==========================================")
-        print(f"        USER MAIN MENU (Welcome, {client_name})")
-        print("==========================================")
-        print("1. View Product Catalog")
-        print("2. Search / Check Low Stock Items")
-        print("3. Add Item to Cart")
-        print("4. Remove Item from Cart")
-        print("5. View Cart & Stream Receipt")
-        print("6. Clear Cart")
-        print("7. Checkout & Complete Order")
-        print("8. Switch Role / Return to Main Landing")
-
-        choice = input("\nEnter choice (1-8): ").strip()
-
-        # Option 1: Show product catalog sorted by price
-        if choice == "1":
-            print("\nSort option: 1. Low-to-High Price | 2. High-to-Low Price")
-            sort_c = input("Select option (1-2): ").strip()
-            display_sorted_catalog(inventory, ascending=(sort_c != "2"))
-
-        # Option 2: Filter products by minimum stock threshold
-        elif choice == "2":
-            try:
-                limit = int(input("Enter stock threshold limit: "))
-                display_low_stock_report(inventory, limit)
-            except ValueError:
-                print("\n[Error] Invalid number input.")
-
-        # Option 3: Add selected item to user cart
-        elif choice == "3":
-            display_sorted_catalog(inventory, ascending=True)
-            item_id = input("\nEnter Item ID to add: ").strip()
-
-            if item_id in inventory:
-                item_data = inventory[item_id]
-                available = item_data["stock"]
-                if available > 0:
-                    try:
-                        qty = int(input(f"Enter quantity for '{item_data['name']}' (Available: {available}): "))
-                        if 0 < qty <= available:
-                            # Add item to cart and reduce available inventory stock
-                            add_item(cart, item_data["name"], item_data["price"], quantity=qty, item_id=item_id)
-                            update_stock(inventory, item_id, -qty)
-                            print(f"\n[Success] Added {qty} x '{item_data['name']}' to cart!")
-                        else:
-                            print(f"\n[Error] Quantity must be between 1 and {available}.")
-                    except ValueError:
-                        print("\n[Error] Invalid number format.")
-                else:
-                    print(f"\n[Sorry] '{item_data['name']}' is out of stock.")
-            else:
-                print("\n[Error] Invalid Item ID.")
-
-        # Option 4: Remove items or lower quantity from cart
-        elif choice == "4":
-            if not cart:
-                print("\n[Notice] Cart is empty.")
-            else:
-                display_user_cart(cart)
-                item_id = input("\nEnter Item ID to remove: ").strip()
-                cart_item = next((i for i in cart if i.get("item_id") == item_id), None)
+    # 3-Column Grid for Product Cards
+    cols = st.columns(3)
+    for idx, (item_id, item_obj) in enumerate(sorted_items):
+        col = cols[idx % 3]
+        with col:
+            with st.container(border=True):
+                st.markdown(f"### {item_obj.name}")
                 
-                if cart_item:
-                    try:
-                        rem_qty = int(input(f"Quantity to remove (Cart Qty: {cart_item['quantity']}): "))
-                        if rem_qty > 0:
-                            success, msg, qty_removed = remove_item(cart, item_id, rem_qty)
-                            if success:
-                                update_stock(inventory, item_id, qty_removed)
-                                print(f"\n[Success] {msg}")
-                            else:
-                                print(f"\n[Error] {msg}")
-                        else:
-                            print("\n[Error] Please enter a valid positive number") 
-                    except ValueError:
-                        print("\n[Error] Invalid number.")
+                if isinstance(item_obj, PerishableItem):
+                    st.caption(f"⏳ **Perishable** | Exp: {item_obj.expiration_date}")
+                elif isinstance(item_obj, DigitalVoucher):
+                    st.caption("⚡ **Digital Voucher** | Instant Delivery")
                 else:
-                    print("\n[Error] Item not in cart.")
+                    st.caption(f"🆔 Item ID: {item_obj.item_id}")
 
-        # Option 5: Display cart items and receipt preview
-        elif choice == "5":
-            display_user_cart(cart)
-            if cart:
-                print("\n--- Receipt Stream Preview ---")
-                for line in stream_receipt_lines(cart):
-                    print(f"  > {line}")
-
-        # Option 6: Cancel cart order and restore store stock
-        elif choice == "6":
-            if not cart:
-                print("\n[Notice] Your cart is already empty.")
-            else:
-                clear_cart_and_restore_stock(cart, inventory)
-                print("\n[Success] Cart cleared! All reserved stock returned to inventory.")
-
-        # Option 7: Process order payment and clear cart
-        elif choice == "7":
-            if not cart:
-                print("\n[Notice] Cart is empty.")
-            else:
-                print("\n--- Pre-Checkout Receipt Preview ---")
-                for line in stream_receipt_lines(cart):
-                    print(f"  > {line}")
+                m1, m2 = st.columns(2)
+                m1.metric("Price", f"${item_obj.price:.2f}")
                 
-                confirm = input("\nProceed with payment? (y/n): ").strip().lower()
-                if confirm == "y":
-                    # Triggers @log_transaction decorator (displays official receipt, logs data to text file)
-                    checkout_order(client_name, cart)
-                    cart.clear()
-                    print("\nThank you for your purchase! Returning to User Menu...")
+                stock_label = "Unlimited" if item_obj.stock == float('inf') else f"{int(item_obj.stock)} left"
+                m2.metric("Stock", stock_label)
+
+                if item_obj.stock > 0 or item_obj.stock == float('inf'):
+                    max_val = 99 if item_obj.stock == float('inf') else max(1, int(item_obj.stock))
+                    qty_selected = st.number_input(
+                        "Quantity",
+                        min_value=1,
+                        max_value=max_val,
+                        value=1,
+                        key=f"qty_{item_id}"
+                    )
+                    
+                    if st.button("➕ Add to Cart", key=f"btn_{item_id}", use_container_width=True):
+                        success, msg = cart.add_item(item_obj, quantity=qty_selected)
+                        if success:
+                            st.toast(f"✅ {msg}")
+                            st.rerun()
+                        else:
+                            st.error(msg)
                 else:
-                    print("\n[Payment Cancelled] Returning to User Menu. Items remain in your cart.")
+                    st.error("❌ Out of Stock")
 
-        # Option 8: Exit user menu loop back to role selection
-        elif choice == "8":
-            print("\nReturning to Role Selection...")
-            break
+with admin_tab:
+    st.subheader("⚙️ Administrator Management Panel")
+    st.markdown("Manage catalog inventory, restock items, modify stock levels, and search audit logs.")
+    
+    admin_action = st.selectbox(
+        "Select Admin Operation",
+        [
+            "1. View Full Catalog & Stock Status",
+            "2. Check Stock Below Threshold Limit",
+            "3. Restock Item",
+            "4. Directly Modify Item Stock (+/-)",
+            "5. Add Brand New Product to Catalog",
+            "6. Delete Item from Catalog",
+            "7. Search Transaction Record by ID"
+        ]
+    )
+    st.divider()
 
-# ADMIN MENU WORKFLOW
+    if "1." in admin_action:
+        st.markdown("### 📋 Full Inventory Catalog")
+        catalog_data = [
+            {
+                "ID": item.item_id,
+                "Name": item.name,
+                "Price ($)": f"${item.price:.2f}",
+                "Stock": "Unlimited" if item.stock == float('inf') else int(item.stock)
+            }
+            for item in inventory.values()
+        ]
+        st.table(catalog_data)
 
-def admin_menu(inventory):
-    while True:
-        print("\n==========================================")
-        print("          ADMINISTRATOR PANEL             ")
-        print("==========================================")
-        print("1. View Full Catalog (Includes Stock & Unit Codes)")
-        print("2. Check Stock Below Threshold Limit")
-        print("3. Restock Item")
-        print("4. Directly Modify Item Stock (Add/Remove)")
-        print("5. Add Brand New Product to Catalog")
-        print("6. Delete Item from Catalog")
-        print("7. Search Transaction Record by ID")
-        print("8. Return to Role Selection / Main Interface")
-        print("9. Exit Application Entirely")
+    elif "2." in admin_action:
+        st.markdown("### ⚠️ Low Stock Threshold Report")
+        threshold = st.number_input("Enter stock threshold limit:", min_value=1, value=10)
+        low_stock = filter_low_stock(inventory, threshold)
+        
+        if not low_stock:
+            st.success("Status: All items are currently well-stocked above the threshold!")
+        else:
+            low_data = [
+                {"ID": item.item_id, "Name": item.name, "Price ($)": f"${item.price:.2f}", "Stock Remaining": int(item.stock)}
+                for item in low_stock.values()
+            ]
+            st.table(low_data)
 
-        choice = input("\nEnter choice (1-9): ").strip()
-
-        if choice == "1":
-            display_sorted_catalog(inventory, ascending=True)
-        elif choice == "2":
-            try:
-                limit = int(input("Enter stock threshold limit: "))
-                display_low_stock_report(inventory, limit)
-            except ValueError:
-                print("\n[Error] Invalid threshold input.")
-        elif choice == "3":
-            display_sorted_catalog(inventory, ascending=True)
-            item_id = input("\nEnter Item ID to restock: ").strip()
-            try:
-                add_qty = int(input("Enter quantity to add to stock: "))
-                if add_qty > 0:
-                    success, msg = verify_and_add_stock(inventory, item_id, add_qty)
-                    print(f"\n[{'Success' if success else 'Error'}] {msg}")
-                else:
-                    print("\n[Error] Quantity must be greater than 0.")
-            except ValueError:
-                print("\n[Error] Invalid quantity input.")
-        elif choice == "4":
-            display_sorted_catalog(inventory, ascending=True)
-            item_id = input("\nEnter Item ID to modify: ").strip()
-            if item_id in inventory:
-                item = inventory[item_id]
-                print(f"Selected: {item['name']} | Current Stock: {item['stock']}")
-                try:
-                    change = int(input("Enter quantity change (Positive to add, Negative to remove e.g., +5 or -3): "))
-                    success, result = update_stock(inventory, item_id, change)
-                    if success:
-                        print(f"\n[Success] Updated stock for '{item['name']}'. New Stock: {result}")
-                    else:
-                        print(f"\n[{result}]")
-                except ValueError:
-                    print("\n[Error] Invalid number input.")
-            else:
-                print("\n[Error] Item ID not found.")
-        elif choice == "5":
-            item_id = input("Enter new Item ID: ").strip()
-            name = input("Enter Item Name: ").strip()
-            try:
-                price = float(input("Enter Price ($): "))
-                stock = int(input("Enter Initial Stock Quantity: "))
-                success, msg = add_new_item(inventory, item_id, name, price, stock)
-                print(f"\n[{'Success' if success else 'Error'}] {msg}")
-            except ValueError:
-                print("\n[Error] Invalid numerical inputs for price or stock.")
-        elif choice == "6":
-            display_sorted_catalog(inventory, ascending=True)
-            item_id = input("\nEnter Item ID to delete from stock: ").strip()
-            confirm = input(f"Are you sure you want to permanently delete Item {item_id}? (y/n): ").strip().lower()
-            if confirm == "y":
-                success, msg = delete_item(inventory, item_id)
-                print(f"\n[{'Success' if success else 'Error'}] {msg}")
-        elif choice == "7":
-            print("\n==========================================")
-            print("       SEARCH TRANSACTION RECORD          ")
-            print("==========================================")
-            tx_id = input("Enter Transaction ID (e.g., A9F321BC): ").strip()
-            success, result_msg = search_transaction_by_id(tx_id)
+    elif "3." in admin_action:
+        st.markdown("### 📦 Restock Existing Item")
+        item_id_input = st.selectbox("Select Item to Restock", options=list(inventory.keys()), format_func=lambda x: f"{x} - {inventory[x].name} (Current Stock: {inventory[x].stock})")
+        add_qty = st.number_input("Quantity to add:", min_value=1, value=10)
+        
+        if st.button("Confirm Restock"):
+            success, msg = verify_and_add_stock(inventory, item_id_input, add_qty)
             if success:
-                print("\n[Found Transaction Record]")
-                print("-" * 40)
-                print(result_msg)
-                print("-" * 40)
+                st.success(msg)
+                st.rerun()
             else:
-                print(f"\n[{result_msg}]")
-        elif choice == "8":
-            print("\nReturning to Role Selection Interface...")
-            break
-        elif choice == "9":
-            print("\nExiting Campus Cart System. Goodbye!")
-            exit()
-        else:
-            print("\n[Error] Invalid selection. Choose between 1 and 9.")
+                st.error(msg)
 
-# MAIN INTERFACE ENTRY POINT
+    elif "4." in admin_action:
+        st.markdown("### 🔄 Directly Modify Item Stock")
+        item_id_input = st.selectbox("Select Item to Modify", options=list(inventory.keys()), format_func=lambda x: f"{x} - {inventory[x].name} (Current Stock: {inventory[x].stock})")
+        qty_change = st.number_input("Enter quantity change (positive to add, negative to reduce):", value=0, step=1)
+        
+        if st.button("Apply Stock Modification"):
+            success, result = update_stock(inventory, item_id_input, qty_change)
+            if success:
+                st.success(f"Successfully updated stock! New Stock: {result}")
+                st.rerun()
+            else:
+                st.error(result)
 
-def main():
-    inventory = initialize_inventory()
-    cart = []
+    elif "5." in admin_action:
+        st.markdown("### ➕ Add Brand New Product")
+        new_id = st.text_input("New Item ID (e.g., 111):")
+        new_name = st.text_input("Item Name:")
+        new_price = st.number_input("Unit Price ($):", min_value=0.01, value=5.00)
+        new_stock = st.number_input("Initial Stock Quantity:", min_value=0, value=20)
+        
+        if st.button("Register New Product"):
+            if new_id and new_name:
+                success, msg = add_new_item(inventory, new_id, new_name, new_price, new_stock)
+                if success:
+                    st.success(msg)
+                    st.rerun()
+                else:
+                    st.error(msg)
+            else:
+                st.warning("Please provide both an Item ID and Name.")
 
-    while True:
-        print("\n==================================================")
-        print("    WELCOME TO CAMPUS CART STUDENT STORE SYSTEM   ")
-        print("==================================================")
-        print("Please select your role interface:")
-        print("1. User / Student Interface")
-        print("2. Administrator Interface")
-        print("3. Exit System")
+    elif "6." in admin_action:
+        st.markdown("### 🗑️ Delete Item from Catalog")
+        item_id_input = st.selectbox("Select Item to Delete", options=list(inventory.keys()), format_func=lambda x: f"{x} - {inventory[x].name}")
+        
+        if st.button("Permanently Delete Item", type="primary"):
+            success, msg = delete_item(inventory, item_id_input)
+            if success:
+                st.success(msg)
+                st.rerun()
+            else:
+                st.error(msg)
 
-        role_choice = input("\nSelect Option (1-3): ").strip()
+    elif "7." in admin_action:
+        st.markdown("### 🔍 Search Transaction Audit Record")
+        search_id = st.text_input("Enter Transaction ID (e.g., A9F321BC):")
+        if st.button("Search Audit Log"):
+            if search_id:
+                found, result = search_transaction_by_id(search_id)
+                if found:
+                    st.success("Transaction Record Found!")
+                    st.code(result)
+                else:
+                    st.error(result)
 
-        if role_choice == "1":
-            client_name = input("\nEnter your Name (Student/Client): ").strip()
-            if not client_name:
-                client_name = "Guest Student"
-            user_menu(inventory, cart, client_name)
-        elif role_choice == "2":
-            admin_menu(inventory)
-        elif role_choice == "3":
-            print("\nThank you for using Campus Cart! System shut down.")
-            break
-        else:
-            print("\n[Error] Invalid selection. Choose 1, 2, or 3.")
 
-if __name__ == "__main__":
-    main()
+# 5. SIDEBAR CART & POLYMORPHIC CHECKOUT
+with st.sidebar:
+    st.header("🛒 Active Shopping Basket")
+    st.divider()
+    
+    if not cart.items:
+        st.info("Your shopping cart is empty.")
+    else:
+        for entry in cart.items:
+            item = entry["item"]
+            qty = entry["quantity"]
+            line_cost = item.price * qty
+            
+            c1, c2 = st.columns([3, 1])
+            with c1:
+                st.write(f"**{item.name}** (x{qty})")
+                st.caption(f"${item.price:.2f} ea | Total: ${line_cost:.2f}")
+            with c2:
+                if st.button("🗑️", key=f"rem_{item.item_id}"):
+                    cart.remove_item(item.item_id, quantity_to_remove=qty)
+                    st.toast(f"Removed {item.name} from cart.")
+                    st.rerun()
+            st.divider()
+
+        subtotal = cart.calculate_subtotal()
+        final_total = calc_price(subtotal, order_total=subtotal)
+        
+        st.metric("Subtotal", f"${subtotal:.2f}")
+        st.metric("Final Total (Tax incl.)", f"${final_total:.2f}")
+        
+        if st.button("🧹 Clear Cart", use_container_width=True):
+            cart.clear()
+            st.toast("Cart cleared and stock restored!")
+            st.rerun()
+            
+        st.divider()
+        st.subheader("💳 Polymorphic Payment")
+        
+        client_name = st.text_input("Student Name", value="Oluwapelumi Bamidele")
+        pay_method = st.selectbox(
+            "Payment Strategy",
+            ["Cash Payment", "Credit/Debit Card", "Mobile Money (OPay/MoMo)"]
+        )
+        
+        card_num = ""
+        momo_phone = ""
+        momo_provider = "OPay"
+        
+        if pay_method == "Credit/Debit Card":
+            card_num = st.text_input("Card Number", value="4111222233334444")
+        elif pay_method == "Mobile Money (OPay/MoMo)":
+            momo_phone = st.text_input("Phone Number", value="08098765432")
+            momo_provider = st.selectbox("Provider", ["OPay", "PalmPay", "MTN MoMo"])
+
+        if st.button("🚀 Complete Order & Checkout", type="primary", use_container_width=True):
+            if pay_method == "Credit/Debit Card":
+                processor = CardPayment(card_num)
+            elif pay_method == "Mobile Money (OPay/MoMo)":
+                processor = MobileMoneyPayment(momo_phone, provider=momo_provider)
+            else:
+                processor = CashPayment()
+
+            try:
+                final_paid = execute_streamlit_checkout(client_name, cart, processor)
+                
+                st.success(f"🎉 Payment Successful! Paid ${final_paid:.2f}")
+                st.balloons()
+                
+                cart.items.clear()
+                st.rerun()
+                
+            except Exception as err:
+                st.error(f"Payment Failure: {err}")
